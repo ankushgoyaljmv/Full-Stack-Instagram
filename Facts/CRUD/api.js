@@ -6,13 +6,13 @@
 
 const express = require("express");
 const app = express();
-const userDB = require("./user.json");
+let userDB = require("./user.json");
 const fs = require("fs");
 const path = require("path");
 
-// REST API 
+// GEneric
 // HTTP methods =>
-// app.get("/api/users", function (req, res) {
+// app.Method("/api/users", function (req, res) {
 //     console.log("Recieved req");
 //     res.status(200).json({
 //         status: "success recieved get request from client",
@@ -23,6 +23,31 @@ const path = require("path");
 // http packets => body 
 app.use(express.json());
 // handler req. body
+
+//highest priority middle ware
+app.use(function (req, res, next) {
+    console.log(" I will always run");
+    console.log(req.body);
+    next();
+    
+})
+
+//  Middleware => modify the resquest response cycle
+app.post("/api.users", function (req, res, next) {
+    console.log(" I m Middleware");
+    console.log(req.body);
+    let keys = Object.keys(req, body);
+    if (keys.length == 0) {
+        res.status(400).json({
+            status: "failure",
+            "message" : "you should send some data to signup"
+        })
+    }
+    else {
+        next();
+    }
+})
+
 
 // 1) create => post
 app.post("/api/users", function (req, res) {
@@ -50,10 +75,16 @@ app.get("/api/users/:user_id", function (req, res) {
             user = userDB[i];
         }
     }
+    if (user == undefined) {
+        return res.status(404).json({
+            status: "failure",
+            message: "user not found"
+        })
+    }
 
     res.status(200).json({
         status: "success",
-        user: user != undefined ? user : "No user found"
+        user: user
     })
 })
 
@@ -64,6 +95,7 @@ app.patch("/api/users/:user_id", function (req, res) {
 
     let { user_id } = req.params;
     let user;
+    let toUpdate = req.body;
     for (let i = 0; i < userDB.length; i++) {
         if (userDB[i].user_id == user_id) {
             user = userDB[i];
@@ -71,29 +103,48 @@ app.patch("/api/users/:user_id", function (req, res) {
     }
     // update
 
+    for (let key in toUpdate) {
+        user[key] = toUpdate[key];
+    }
+
+    if (user == undefined) {
+        return res.status(404).json({
+            status: "failure",
+            message: "user not found"
+        })
+    }
+    fs.writeFileSync(path.join(__dirname, "user.json"), JSON.stringify(userDB));
+
     res.status(200).json({
         status: "success",
-        user: user != undefined ? user : "No user found"
+        "message" : "updated"
     })
 })
 
 // 4) delete => DELETE
 // search and delete => can use slice
+
 app.delete("/api/users/:user_id", function (req, res) {
 
     let { user_id } = req.params;
     let user;
-    for (let i = 0; i < userDB.length; i++) {
-        if (userDB[i].user_id == user_id) {
-            user = userDB[i];
-        }
+    let initialUserL = userDB.length;
+    userDB = userDB.filter(function (user) {
+        return user.user_id != user_id;
+    })
+    if (initialUserL == userDB.length) {
+        return res.status(404).json({
+            status: "failure",
+            message: "user not found"
+        })
     }
 
     res.status(200).json({
         status: "success",
-        user: user != undefined ? user : "No user found"
+        user:  "User Deleted"
     })
 })
+
 // localhost:3000/api/users 
 app.listen(3000, function () {
     console.log("Server is listening at port 3000");
